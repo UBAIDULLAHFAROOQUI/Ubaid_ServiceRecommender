@@ -46,13 +46,49 @@ Rules:
   main concern, and acknowledge the others briefly in the reason.
 - If the concern is unclear or not covered by any service, choose the closest
   reasonable option and keep the reason gentle and inviting (do not refuse).
+- The "recommendedService" value is ALWAYS the exact English catalog name.
+- Write the "reason" in {language_name}.
 - Reply with ONLY a JSON object, no markdown, no extra text:
-  {{"recommendedService": "<exact name>", "reason": "<one warm sentence>"}}
+  {{"recommendedService": "<exact english name>", "reason": "<one warm sentence in {language_name}>"}}
 - The reason must be one short, professional, friendly sentence (max 20 words).
 
 Catalog:
 {catalog}
 """
+
+# Lausanne is French-speaking, so French is fully supported.
+LANGUAGE_NAMES = {"en": "English", "fr": "French"}
+
+# French -> English hints so the OFFLINE fallback can still match French input.
+# (When the LLM is available it handles French natively; this is the safety net.)
+FR_HINTS = {
+    "ongles": "nails", "ongle": "nails", "cassants": "brittle", "cassant": "brittle",
+    "fragiles": "brittle", "faibles": "weak nails", "abîmés": "damaged",
+    "mains": "hands", "pieds": "feet", "pied": "feet",
+    "cils": "lash extensions", "extension": "extensions", "extensions de cils": "lash extensions",
+    "sourcils": "eyebrow", "épilation": "hair removal", "epilation": "hair removal",
+    "lèvre": "upper lip", "levre": "upper lip", "menton": "chin", "jambe": "leg",
+    "jambes": "legs", "aisselles": "armpit", "maillot": "bikini", "visage": "face",
+    "cuir chevelu": "scalp", "cheveux": "hair", "stress": "stress", "détente": "relax",
+    "detente": "relax", "relaxant": "relax", "tête": "head", "tete": "head",
+    "manucure": "manicure", "pédicure": "pedicure", "pedicure": "pedicure",
+    "vernis": "varnish", "gel": "gel", "fatigués": "tired", "fatigues": "tired",
+    "mariage": "wedding", "occasion": "occasion", "pellicules": "dandruff",
+}
+
+# Localised reason templates for the offline fallback.
+FALLBACK_REASONS = {
+    "en": {
+        "match": "Based on your answers, our {name} is a great fit.",
+        "default": "We weren't sure of your exact need, so our classic manicure is "
+                   "a lovely place to start — tell us more anytime.",
+    },
+    "fr": {
+        "match": "D'après vos réponses, notre prestation {name} est idéale pour vous.",
+        "default": "Nous n'étions pas sûrs de votre besoin exact ; notre manucure "
+                   "classique est un excellent point de départ — dites-nous en plus.",
+    },
+}
 
 
 def _get_client():
@@ -71,11 +107,12 @@ def _build_user_message(answers):
     return f"Client questionnaire answers:\n{joined}\n\nRecommend one service."
 
 
-def _llm_recommend(answers):
+def _llm_recommend(answers, language="en"):
     """Call the LLM. Returns a service dict + reason, or None on any failure."""
     client = _get_client()
     if client is None:
         return None
+    language_name = LANGUAGE_NAMES.get(language, "English")
     try:
         resp = client.chat.completions.create(
             model=MODEL,
@@ -84,7 +121,8 @@ def _llm_recommend(answers):
             response_format={"type": "json_object"},
             messages=[
                 {"role": "system",
-                 "content": SYSTEM_PROMPT.format(catalog=catalog_for_prompt())},
+                 "content": SYSTEM_PROMPT.format(catalog=catalog_for_prompt(),
+                                                 language_name=language_name)},
                 {"role": "user", "content": _build_user_message(answers)},
             ],
         )
@@ -96,17 +134,18 @@ def _llm_recommend(answers):
         if service is None:
             return None  # LLM hallucinated a name -> fall back
         return {"service": service,
-                "reason": reason or f"This treatment is well suited to your needs."}
+                "reason": reason or "This treatment is well suited to your needs."}
     except Exception as e:  # network, parse, auth, rate limit -> fallback
         print(f"[recommender] LLM failed, using fallback: {e}")
         return None
 
 
-def _keyword_fallback(answers):
+def _keyword_fallback(answers, language="en"):
     """Offline matcher: score each service by keyword hits in the answers.
     Strips the question label (text before ':' or '?') so scaffolding words like
     'area', 'concern', 'occasion' don't pollute the match. Handles both request
-    styles: 'What area? nails' and 'area: nails'."""
+    styles ('What area? nails' and 'area: nails') and French input via FR_HINTS."""
+    reasons = FALLBACK_REASONS.get(language, FALLBACK_REASONS["en"])
     values = []
     for a in answers:
         v = a
@@ -116,34 +155,36 @@ def _keyword_fallback(answers):
                 break
         values.append(v)
     text = " ".join(values).lower()
+
+    # Add English equivalents of any French terms so the matcher can score them.
+    for fr, en in FR_HINTS.items():
+        if fr in text:
+            text += " " + en
+
     best, best_score = None, 0
     for s in SERVICES:
         score = sum(1 for kw in s["keywords"] if kw in text)
         if score > best_score:
             best, best_score = s, score
     if best is None:  # nothing matched -> safe, inviting default
-        best = SERVICES_BY_NAME["Manicure"]
-        return {
-            "service": best,
-            "reason": "We weren't sure of your exact need, so our classic "
-                      "manicure is a lovely place to start — tell us more anytime.",
-        }
-    return {
-        "service": best,
-        "reason": f"Based on your answers, our {best['name'].lower()} is a great fit.",
-    }
+        return {"service": SERVICES_BY_NAME["Manicure"], "reason": reasons["default"]}
+    return {"service": best,
+            "reason": reasons["match"].format(name=best["name"].lower())}
 
 
-def recommend_service(answers):
+def recommend_service(answers, language="en"):
     """
     Public entry point.
-    Returns the exact response shape from the project doc (Section 10.4):
-      {recommendedService, price, duration, reason}
+    Returns the response shape from the project doc (Section 10.4) plus serviceId:
+      {recommendedService, serviceId, price, duration, reason}
+    `language` is 'en' or 'fr' (Lausanne is French-speaking).
     """
+    if language not in LANGUAGE_NAMES:
+        language = "en"
     if not answers:
         answers = []
 
-    result = _llm_recommend(answers) or _keyword_fallback(answers)
+    result = _llm_recommend(answers, language) or _keyword_fallback(answers, language)
     s = result["service"]
     return {
         "recommendedService": s["name"],
@@ -151,4 +192,55 @@ def recommend_service(answers):
         "price": s["price"],
         "duration": s["duration"],
         "reason": result["reason"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Chat-based questionnaire (doc: "chat-based questionnaire").
+# The frontend calls get_questions() to render the step-by-step flow instead
+# of hard-coding the questions. Returns EN + FR so it works for both audiences.
+# ---------------------------------------------------------------------------
+QUESTIONS = [
+    {
+        "key": "area",
+        "en": {"question": "Which area would you like to focus on?",
+               "options": ["Nails", "Hands", "Feet", "Face / hair removal",
+                           "Eyes / lashes", "Head / scalp"]},
+        "fr": {"question": "Quelle zone souhaitez-vous traiter ?",
+               "options": ["Ongles", "Mains", "Pieds", "Visage / épilation",
+                           "Yeux / cils", "Tête / cuir chevelu"]},
+    },
+    {
+        "key": "concern",
+        "en": {"question": "What is your main concern?",
+               "options": ["Brittle / weak nails", "Long-lasting colour",
+                           "Unwanted hair", "Fuller lashes", "Stress / tension",
+                           "Dry or itchy scalp", "Just pampering"]},
+        "fr": {"question": "Quelle est votre principale préoccupation ?",
+               "options": ["Ongles cassants / faibles", "Couleur longue tenue",
+                           "Pilosité indésirable", "Cils plus fournis",
+                           "Stress / tension", "Cuir chevelu sec", "Juste se faire plaisir"]},
+    },
+    {
+        "key": "occasion",
+        "en": {"question": "What is the occasion?",
+               "options": ["Daily / everyday", "Special event", "Wedding", "Relaxation"]},
+        "fr": {"question": "Quelle est l'occasion ?",
+               "options": ["Quotidien", "Événement spécial", "Mariage", "Détente"]},
+    },
+]
+
+
+def get_questions(language="en"):
+    """Return the ordered questionnaire in the requested language ('en'/'fr')."""
+    if language not in LANGUAGE_NAMES:
+        language = "en"
+    return {
+        "language": language,
+        "questions": [
+            {"key": q["key"],
+             "question": q[language]["question"],
+             "options": q[language]["options"]}
+            for q in QUESTIONS
+        ],
     }

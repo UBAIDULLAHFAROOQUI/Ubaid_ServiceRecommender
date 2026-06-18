@@ -14,14 +14,14 @@ The response shape matches the project document exactly so the React web
 (Sibgha) and React Native app (Sanaullah) can consume it without changes.
 """
 
-from typing import List
+from typing import List, Optional
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from recommender import recommend_service
+from recommender import recommend_service, get_questions
 
-app = FastAPI(title="Celine Esthetique AI - Service Recommender", version="1.0.0")
+app = FastAPI(title="Celine Esthetique AI - Service Recommender", version="1.1.0")
 
 # Allow the web + mobile frontends to call this API.
 # Tighten allow_origins to the real domain(s) before production.
@@ -37,6 +37,8 @@ app.add_middleware(
 class RecommendRequest(BaseModel):
     # doc format: {"answers": ["What area? nails", "What concern? brittle nails", ...]}
     answers: List[str] = Field(default_factory=list)
+    # 'en' (default) or 'fr' — Lausanne is French-speaking.
+    language: Optional[str] = "en"
 
 
 class RecommendResponse(BaseModel):
@@ -53,9 +55,15 @@ def health():
     return {"status": "ok", "service": "Celine AI - Service Recommender"}
 
 
+@app.get("/api/ai/recommend-service/questions")
+def questions(language: str = "en"):
+    """Chat-based questionnaire for the frontend to render (en/fr)."""
+    return get_questions(language)
+
+
 @app.post("/api/ai/recommend-service", response_model=RecommendResponse)
 def recommend(req: RecommendRequest):
-    return recommend_service(req.answers)
+    return recommend_service(req.answers, req.language)
 
 
 # Lets you start the server by clicking VS Code's "Run" button,
