@@ -105,3 +105,4 @@ python test_recommender.py
 
 - **17Jun_2026 — Day 1:** Service Recommender (FastAPI + Groq, serviceId, fallback, edge cases)
 - **18Jun_2026 — Day 2:** EN/FR multilingual support + chat questionnaire endpoint + expanded tests
+- **19Jun_2026 — Day 3:** Catalog aligned to Firestore `services` schema + sample add-ons + single data swap-point for going live

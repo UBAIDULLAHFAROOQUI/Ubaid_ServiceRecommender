@@ -188,7 +188,7 @@ def recommend_service(answers, language="en"):
     s = result["service"]
     return {
         "recommendedService": s["name"],
-        "serviceId": s["id"],          # lets the frontend deep-link to the detail page
+        "serviceId": s["serviceId"],   # matches Firestore `services.serviceId`
         "price": s["price"],
         "duration": s["duration"],
         "reason": result["reason"],
