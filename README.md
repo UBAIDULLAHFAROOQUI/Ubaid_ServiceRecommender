@@ -146,6 +146,8 @@ env var `GROQ_API_KEY`. The frontend then calls the public URL instead of localh
 | `test_price_estimator.py` | Full offline test suite for the estimator |
 | `sentiment.py` | Review sentiment: EN/FR, rating-aware, LLM + fallback |
 | `firestore_client.py` | Firestore data layer with local mock fallback |
+| `services_loader.py` | Reads real services from Excel/JSON into the catalog schema |
+| `run_all_tests.py` | Runs all test suites in one command |
 | `test_sentiment.py` | Offline test suite for sentiment |
 | `Procfile` / `runtime.txt` | Deployment config (Render/Railway) |
 | `services_catalog.py` | The 30+ real salon services |
@@ -161,6 +163,9 @@ env var `GROQ_API_KEY`. The frontend then calls the public URL instead of localh
 - **Swap to OpenAI** later: change only `_get_client()` in `recommender.py`.
 - **VAT:** Swiss prices are VAT-inclusive (standard rate 8.1%, 2026). The estimator
   reveals VAT from the total rather than adding it on top; confirm with the salon.
+- **Real services data:** drop the salon's `services.json` or `services.xlsx` in the
+  project root (or set `SERVICES_FILE`). `load_services()` loads it and keeps the
+  local keywords for fallback. Until then, placeholders are used.
 - **NFR-02 (<4s):** Groq typically responds in well under a second.
 - **Firestore:** the review pipeline reads/writes via `firestore_client.py`. With no
   credentials it uses an in-memory mock; drop `serviceAccount.json` in the project
@@ -176,3 +181,4 @@ env var `GROQ_API_KEY`. The frontend then calls the public URL instead of localh
 - **22Jun_2026 — Day 6:** Integration & polish — combined recommend-and-price endpoint, upgraded health/info, deployment-ready (Procfile, PORT)
 - **23Jun_2026 — Day 7:** Sentiment Analysis classifier — EN/FR, rating-aware, confidence + reason, LLM + fallback, full test suite
 - **24Jun_2026 — Day 8:** Firestore data layer + review pipeline (read → classify → write sentiment), with mock fallback until credentials land
+- **25Jun_2026 — Day 9:** Real services loader (Excel/JSON → catalog, keyword merge) wired into the swap-point + master test runner (all suites pass)

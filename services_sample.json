@@ -1,0 +1,26 @@
+{
+  "services": [
+    {
+      "serviceId": "manicure",
+      "name": "Manicure",
+      "category": "nails",
+      "description": "Classic manicure (REAL DATA SAMPLE)",
+      "duration": 50,
+      "price": 60,
+      "isPopular": true,
+      "isAvailable": true,
+      "addOns": [{"name": "Gel finish", "price": 18, "duration": 15}]
+    },
+    {
+      "serviceId": "head_spa",
+      "name": "Head Spa Japanese",
+      "category": "head",
+      "description": "Japanese head spa (REAL DATA SAMPLE)",
+      "duration": 60,
+      "price": 130,
+      "isPopular": true,
+      "isAvailable": true,
+      "addOns": [{"name": "Hair mask", "price": 28, "duration": 15}]
+    }
+  ]
+}

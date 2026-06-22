@@ -333,12 +333,39 @@ _SERVICES_DATA = [
 # in the codebase needs to change.
 # ---------------------------------------------------------------------------
 def load_services():
-    """Return all services as a list of dicts shaped like Firestore `services`."""
-    # FUTURE (real data):
-    #   from firebase_admin import firestore
-    #   db = firestore.client()
-    #   return [doc.to_dict() | {"serviceId": doc.id} for doc in db.collection("services").stream()]
+    """Return all services as a list of dicts shaped like Firestore `services`.
+
+    Swap-point for going live:
+      - If a real services file is present (env SERVICES_FILE, or ./services.json
+        or ./services.xlsx), load REAL data from it and keep our local `keywords`
+        (matched by serviceId/name) so the offline fallback still works.
+      - Otherwise, return the in-memory placeholder data below.
+    """
+    import os
+    candidates = [os.getenv("SERVICES_FILE"), "services.json", "services.xlsx"]
+    for path in candidates:
+        if path and os.path.exists(path):
+            try:
+                from services_loader import read_services_file
+                real = read_services_file(path)
+                if real:
+                    return _merge_keywords(real)
+            except Exception as e:
+                print(f"[catalog] could not load {path} ({e}); using placeholders.")
     return _SERVICES_DATA
+
+
+def _merge_keywords(real_services):
+    """Attach our local `keywords` to real data by matching serviceId or name,
+    so the offline fallback keeps working once real prices/durations are loaded."""
+    by_id = {s["serviceId"]: s for s in _SERVICES_DATA}
+    by_name = {s["name"].lower(): s for s in _SERVICES_DATA}
+    for s in real_services:
+        match = by_id.get(s["serviceId"]) or by_name.get(s["name"].lower())
+        if match and not s.get("keywords"):
+            s["keywords"] = match["keywords"]
+        s.setdefault("keywords", [])
+    return real_services
 
 
 # Load once at import. Call refresh_catalog() if the source changes at runtime.
