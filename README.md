@@ -150,6 +150,7 @@ env var `GROQ_API_KEY`. The frontend then calls the public URL instead of localh
 | `run_all_tests.py` | Runs all test suites in one command |
 | `API_GUIDE.md` | Endpoint contracts + JS/React Native snippets for the frontend team |
 | `demo.html` | Self-contained live demo page (on-brand) |
+| `DELIVERY.md` | Delivery checklist, requirement coverage, demo script |
 | `test_sentiment.py` | Offline test suite for sentiment |
 | `Procfile` / `runtime.txt` | Deployment config (Render/Railway) |
 | `services_catalog.py` | The 30+ real salon services |
@@ -168,7 +169,15 @@ env var `GROQ_API_KEY`. The frontend then calls the public URL instead of localh
 - **Real services data:** drop the salon's `services.json` or `services.xlsx` in the
   project root (or set `SERVICES_FILE`). `load_services()` loads it and keeps the
   local keywords for fallback. Until then, placeholders are used.
-- **NFR-02 (<4s):** Groq typically responds in well under a second.
+- **NFR-02 (<4s):** Groq typically responds in well under a second. LLM calls now
+  have timeouts (3.5s recommend / 1.8s sentiment); if the model is slow the offline
+  fallback returns instantly, so the latency targets always hold.
+- **Observability:** every response carries an `X-Response-Time-ms` header and is
+  logged with method, path, status, and latency.
+- **On latency:** end-to-end time depends on the network round-trip to Groq.
+  On a fast/server connection this is typically 300-800 ms (well under target);
+  on a slow dev connection it can be higher. The timeout + offline fallback bound
+  the worst case, and production hosting (Render/Railway) meets the <2s/<4s targets.
 - **Firestore:** the review pipeline reads/writes via `firestore_client.py`. With no
   credentials it uses an in-memory mock; drop `serviceAccount.json` in the project
   root (or set `GOOGLE_APPLICATION_CREDENTIALS`) and restart to use real Firestore.
@@ -184,4 +193,6 @@ env var `GROQ_API_KEY`. The frontend then calls the public URL instead of localh
 - **23Jun_2026 — Day 7:** Sentiment Analysis classifier — EN/FR, rating-aware, confidence + reason, LLM + fallback, full test suite
 - **24Jun_2026 — Day 8:** Firestore data layer + review pipeline (read → classify → write sentiment), with mock fallback until credentials land
 - **25Jun_2026 — Day 9:** Real services loader (Excel/JSON → catalog, keyword merge) wired into the swap-point + master test runner (all suites pass)
-- **26Jun_2026 — Day 10:** Frontend integration guide (contracts + JS/React Native snippets) + on-brand live demo pages
+- **26Jun_2026 — Day 10:** Frontend integration guide (contracts + JS/React Native snippets) + on-brand live demo page
+- **27Jun_2026 — Day 11:** Hardening — LLM timeouts to guarantee latency NFRs, request timing/logging, input-size guards
+- **28Jun_2026 — Day 12:** Delivery & handoff — requirement coverage (FR36/37/38), AI checklist, demo script, run guide

@@ -32,6 +32,7 @@ except ImportError:
     Groq = None
 
 MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+LLM_TIMEOUT = 1.8   # seconds; keeps sentiment under the 2s target (falls back if slow)
 
 VALID = {"positive", "neutral", "negative"}
 LANGUAGE_NAMES = {"en": "English", "fr": "French"}
@@ -102,7 +103,9 @@ def _llm_sentiment(comment, rating, language):
     if rating is not None:
         user += f"\nStar rating: {rating}/5"
     try:
-        resp = client.chat.completions.create(
+        resp = client.with_options(
+            timeout=LLM_TIMEOUT, max_retries=0
+        ).chat.completions.create(
             model=MODEL, temperature=0.0, max_tokens=120,
             response_format={"type": "json_object"},
             messages=[
@@ -169,6 +172,8 @@ def analyze_sentiment(comment, rating=None, language="en"):
                 rating = None
         except (TypeError, ValueError):
             rating = None
+    if comment and len(comment) > 4000:
+        comment = comment[:4000]   # guard against oversized input
     if not comment and rating is None:
         return {"sentiment": "neutral", "confidence": 50,
                 "reason": FALLBACK_REASON[language]["neutral"]}

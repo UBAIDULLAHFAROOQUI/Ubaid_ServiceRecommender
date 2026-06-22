@@ -33,6 +33,7 @@ except ImportError:  # keeps fallback working even if groq isn't installed yet
     Groq = None
 
 MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+LLM_TIMEOUT = 3.5   # seconds; keeps recommender under the 4s NFR (falls back if slow)
 
 SYSTEM_PROMPT = """You are Celine AI, the service recommender for Celine Esthetique,
 a luxury beauty & nail salon in Lausanne, Switzerland.
@@ -114,7 +115,7 @@ def _llm_recommend(answers, language="en"):
         return None
     language_name = LANGUAGE_NAMES.get(language, "English")
     try:
-        resp = client.chat.completions.create(
+        resp = client.with_options(timeout=LLM_TIMEOUT, max_retries=0).chat.completions.create(
             model=MODEL,
             temperature=0.3,
             max_tokens=200,

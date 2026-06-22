@@ -18,8 +18,10 @@ React Native app (Sanaullah) can consume them without changes.
 """
 
 import os
+import time
+import logging
 from typing import List, Optional, Any
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -29,9 +31,24 @@ from sentiment import analyze_sentiment
 from firestore_client import get_store
 from services_catalog import SERVICES
 
-APP_VERSION = "1.5.0"
+APP_VERSION = "1.6.0"
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logger = logging.getLogger("celine-ai")
 
 app = FastAPI(title="Celine Esthetique AI - Service Recommender", version=APP_VERSION)
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Log method, path, status, and response time (ms) for every request,
+    so we can verify the latency NFRs (<4s recommend, <2s sentiment)."""
+    start = time.perf_counter()
+    response = await call_next(request)
+    ms = (time.perf_counter() - start) * 1000
+    logger.info(f"{request.method} {request.url.path} -> {response.status_code} ({ms:.0f} ms)")
+    response.headers["X-Response-Time-ms"] = f"{ms:.0f}"
+    return response
 
 # Allow the web + mobile frontends to call this API.
 # Tighten allow_origins to the real domain(s) before production.
