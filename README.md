@@ -148,6 +148,8 @@ env var `GROQ_API_KEY`. The frontend then calls the public URL instead of localh
 | `firestore_client.py` | Firestore data layer with local mock fallback |
 | `services_loader.py` | Reads real services from Excel/JSON into the catalog schema |
 | `run_all_tests.py` | Runs all test suites in one command |
+| `API_GUIDE.md` | Endpoint contracts + JS/React Native snippets for the frontend team |
+| `demo.html` | Self-contained live demo page (on-brand) |
 | `test_sentiment.py` | Offline test suite for sentiment |
 | `Procfile` / `runtime.txt` | Deployment config (Render/Railway) |
 | `services_catalog.py` | The 30+ real salon services |
@@ -182,3 +184,4 @@ env var `GROQ_API_KEY`. The frontend then calls the public URL instead of localh
 - **23Jun_2026 — Day 7:** Sentiment Analysis classifier — EN/FR, rating-aware, confidence + reason, LLM + fallback, full test suite
 - **24Jun_2026 — Day 8:** Firestore data layer + review pipeline (read → classify → write sentiment), with mock fallback until credentials land
 - **25Jun_2026 — Day 9:** Real services loader (Excel/JSON → catalog, keyword merge) wired into the swap-point + master test runner (all suites pass)
+- **26Jun_2026 — Day 10:** Frontend integration guide (contracts + JS/React Native snippets) + on-brand live demo pages

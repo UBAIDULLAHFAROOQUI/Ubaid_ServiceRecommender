@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Celine Esthetique — AI Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* Brand palette from project doc §7.1 (Luxury Beauty Theme) */
+  :root{
+    --gold:#D4AF37; --gold-deep:#C5A028; --rose:#B76E79;
+    --black:#1A1A1A; --blush:#F9E4E0; --white:#fff;
+    --gray:#9CA3AF; --sage:#87A96B; --burgundy:#800020;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--blush); color:var(--black);
+    font-family:'Montserrat',sans-serif; line-height:1.5;
+    padding:32px 16px;
+  }
+  .wrap{max-width:760px;margin:0 auto}
+  header{text-align:center;margin-bottom:8px}
+  header h1{
+    font-family:'Playfair Display',serif; font-weight:700;
+    font-size:38px; margin:0; letter-spacing:.5px;
+  }
+  header .sub{color:var(--rose);font-weight:600;letter-spacing:2px;
+    text-transform:uppercase;font-size:12px;margin-top:6px}
+  .api-row{display:flex;gap:8px;align-items:center;justify-content:center;
+    margin:18px 0 28px;font-size:13px;color:var(--black)}
+  .api-row input{font-family:inherit;border:1px solid var(--gray);
+    border-radius:8px;padding:6px 10px;width:230px}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--gray);display:inline-block}
+  .dot.ok{background:var(--sage)} .dot.bad{background:var(--burgundy)}
+  .card{background:var(--white);border-radius:20px;padding:24px;
+    box-shadow:0 8px 20px rgba(0,0,0,.08);margin-bottom:22px}
+  .card h2{font-family:'Playfair Display',serif;font-weight:500;
+    font-size:22px;margin:0 0 16px}
+  label{display:block;font-size:13px;font-weight:600;margin:12px 0 4px}
+  select,input[type=text],input[type=number]{width:100%;font-family:inherit;
+    border:1px solid var(--gray);border-radius:10px;padding:10px 12px;font-size:14px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  button{font-family:inherit;font-weight:600;font-size:15px;cursor:pointer;
+    background:var(--gold);color:var(--black);border:none;
+    border-radius:40px;padding:12px 28px;margin-top:18px;transition:background .15s}
+  button:hover{background:var(--gold-deep)}
+  button:disabled{opacity:.6;cursor:wait}
+  .result{margin-top:18px;border-top:1px dashed var(--blush);padding-top:16px;
+    font-size:14px;display:none}
+  .result.show{display:block}
+  .price{font-family:'Playfair Display',serif;color:var(--gold-deep);
+    font-weight:700;font-size:26px}
+  .muted{color:var(--gray);font-size:13px}
+  .line{display:flex;justify-content:space-between;padding:3px 0}
+  .pill{display:inline-block;border-radius:20px;padding:3px 12px;font-size:12px;
+    font-weight:600;color:var(--white)}
+  .pos{background:var(--sage)} .neg{background:var(--burgundy)} .neu{background:var(--gray)}
+  .err{color:var(--burgundy);font-weight:600}
+  footer{text-align:center;color:var(--gray);font-size:12px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Celine Esthetique</h1>
+    <div class="sub">AI Assistant · Live Demo</div>
+  </header>
+
+  <div class="api-row">
+    <span class="dot" id="dot"></span>
+    API: <input id="api" type="text" value="http://127.0.0.1:8001">
+    <button style="margin:0;padding:6px 14px;font-size:12px" onclick="ping()">Check</button>
+  </div>
+
+  <!-- Recommend + Price -->
+  <div class="card">
+    <h2>Find my service &amp; price</h2>
+    <div class="grid">
+      <div>
+        <label>Area</label>
+        <select id="area">
+          <option>nails</option><option>feet</option><option>face</option>
+          <option>eyes / lashes</option><option>head / scalp</option>
+        </select>
+      </div>
+      <div>
+        <label>Concern</label>
+        <input id="concern" type="text" value="brittle nails">
+      </div>
+      <div>
+        <label>Customer</label>
+        <select id="customer">
+          <option value="regular">Regular</option>
+          <option value="vip">VIP (10% off)</option>
+          <option value="first_time">First-time (15% off)</option>
+        </select>
+      </div>
+      <div>
+        <label>Language</label>
+        <select id="lang"><option value="en">English</option><option value="fr">Français</option></select>
+      </div>
+    </div>
+    <button id="recBtn" onclick="recommend()">Recommend &amp; price</button>
+    <div class="result" id="recOut"></div>
+  </div>
+
+  <!-- Sentiment -->
+  <div class="card">
+    <h2>Review sentiment</h2>
+    <label>Review text</label>
+    <input id="review" type="text" value="The staff were lovely and the salon was spotless!">
+    <div class="grid">
+      <div><label>Rating (1–5)</label><input id="rating" type="number" min="1" max="5" value="5"></div>
+      <div><label>Language</label>
+        <select id="slang"><option value="en">English</option><option value="fr">Français</option></select></div>
+    </div>
+    <button id="sentBtn" onclick="sentiment()">Analyze</button>
+    <div class="result" id="sentOut"></div>
+  </div>
+
+  <footer>Calls the live Celine AI API · prices in CHF · placeholder data until salon file loads</footer>
+</div>
+
+<script>
+const api = () => document.getElementById('api').value.replace(/\/$/,'');
+
+async function ping(){
+  const dot = document.getElementById('dot');
+  try{
+    const r = await fetch(api()+'/');
+    const j = await r.json();
+    dot.className = 'dot ok';
+    dot.title = 'v'+j.version+' · '+j.servicesLoaded+' services';
+  }catch(e){ dot.className='dot bad'; dot.title='Cannot reach API'; }
+}
+
+async function recommend(){
+  const btn = document.getElementById('recBtn'), out = document.getElementById('recOut');
+  btn.disabled = true; out.className='result show'; out.innerHTML='Thinking…';
+  try{
+    const body = {
+      answers: ['area: '+document.getElementById('area').value,
+                'concern: '+document.getElementById('concern').value],
+      customerType: document.getElementById('customer').value,
+      language: document.getElementById('lang').value
+    };
+    const r = await fetch(api()+'/api/ai/recommend-and-price',{
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    if(!r.ok) throw new Error('API '+r.status);
+    const d = await r.json();
+    const rec = d.recommendation, est = d.estimate;
+    let html = `<div><strong>${rec.recommendedService}</strong> `+
+               `<span class="muted">(${rec.serviceId})</span></div>`+
+               `<div class="muted" style="margin:4px 0 12px">${rec.reason}</div>`+
+               `<div class="line"><span>Subtotal</span><span>CHF ${est.subtotal}</span></div>`;
+    if(est.discount.amount>0)
+      html += `<div class="line"><span>Discount (${est.discount.type}, ${est.discount.percent}%)</span><span>− CHF ${est.discount.amount}</span></div>`;
+    html += `<div class="line" style="margin-top:6px"><span class="price">Total</span>`+
+            `<span class="price">CHF ${est.total}</span></div>`+
+            `<div class="muted">incl. VAT ${est.vat.percent}% — CHF ${est.vat.amount} · ${est.totalDuration} min</div>`;
+    if(est.deposit.required)
+      html += `<div class="muted" style="margin-top:6px">${est.deposit.reason} (CHF ${est.deposit.amount})</div>`;
+    out.innerHTML = html;
+  }catch(e){ out.innerHTML = '<span class="err">'+e.message+' — is the server running?</span>'; }
+  btn.disabled = false;
+}
+
+async function sentiment(){
+  const btn = document.getElementById('sentBtn'), out = document.getElementById('sentOut');
+  btn.disabled = true; out.className='result show'; out.innerHTML='Analyzing…';
+  try{
+    const body = {
+      comment: document.getElementById('review').value,
+      rating: Number(document.getElementById('rating').value),
+      language: document.getElementById('slang').value
+    };
+    const r = await fetch(api()+'/api/ai/analyze-sentiment',{
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    if(!r.ok) throw new Error('API '+r.status);
+    const d = await r.json();
+    const cls = d.sentiment==='positive'?'pos':d.sentiment==='negative'?'neg':'neu';
+    out.innerHTML = `<span class="pill ${cls}">${d.sentiment}</span> `+
+      `<span class="muted">confidence ${d.confidence}%</span>`+
+      `<div style="margin-top:8px">${d.reason}</div>`;
+  }catch(e){ out.innerHTML = '<span class="err">'+e.message+' — is the server running?</span>'; }
+  btn.disabled = false;
+}
+
+ping();
+</script>
+</body>
+</html>
